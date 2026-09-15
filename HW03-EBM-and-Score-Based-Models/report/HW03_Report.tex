@@ -1,0 +1,171 @@
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{subcaption}
+\usepackage{microtype}
+\usepackage{cite}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=cyan,
+    urlcolor=blue
+}
+
+\begin{document}
+
+\title{Energy-Based Models and Score-Based Generative Modeling with FiLM\\
+\large Assignment 3 -- Deep Generative Models (Fall 1404 / 2025)}
+
+\author{Alireza Najafi Motiei (Student ID: 810100224)\\
+\IEEEmembership{Faculty of Electrical and Computer Engineering, University of Tehran}\\
+Instructor: Dr. Mostafa Tavassolipour}
+
+\markboth{University of Tehran, ECE Department -- Deep Generative Models (Fall 1404)}{Najafi Motiei: Assignment 3 Report}
+
+\maketitle
+
+\begin{abstract}
+This report presents the theoretical derivations and experimental results for Assignment 3 of Deep Generative Models (Fall 1404). The first module explores Energy-Based Models (EBMs), analyzing the intractability of the partition function, the maximum likelihood gradient dynamics, contrastive divergence (CD), and the exponential failure of rejection sampling in high dimensions ($D=784$). We implement an EBM on MNIST and evaluate Langevin dynamics for image synthesis and denoising across noise variances ($\sigma \in \{0.2, 0.4, 0.6\}$). The second module investigates Score-Based Generative Models (SGMs). We examine score matching and denoising score matching (DSM) to bypass Jacobian trace computations, analyze mode-mixing pathology and manifold hypothesis challenges, and demonstrate Noise Conditional Score Networks (NCSN) combined with Annealed Langevin Dynamics and Feature-wise Linear Modulation (FiLM) conditioning.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Energy-Based Models, Partition Function, Contrastive Divergence, Langevin Dynamics, Score-Based Generative Models, Denoising Score Matching, Annealed Langevin Dynamics, FiLM Conditioning, MNIST.
+\end{IEEEkeywords}
+
+\section{Question 1: Energy-Based Models (EBM)}
+
+\subsection{Theoretical Foundations and the Partition Function}
+An Energy-Based Model parameterizes a probability distribution as:
+\begin{equation}
+p_\theta(x) = \frac{\exp(-E_\theta(x))}{Z(\theta)}, \quad Z(\theta) = \int \exp(-E_\theta(x)) dx
+\end{equation}
+Computing the normalizing partition function $Z(\theta)$ requires integrating over high-dimensional input spaces, which is computationally intractable.
+
+\subsubsection{Maximum Likelihood Learning Gradient}
+The gradient of the log-likelihood decomposes into positive and negative phases:
+\begin{equation}
+\nabla_\theta \log p_\theta(x) = -\nabla_\theta E_\theta(x) + \mathbb{E}_{x' \sim p_\theta(x')} [\nabla_\theta E_\theta(x')]
+\end{equation}
+The positive phase suppresses the energy of observed data samples, while the negative phase elevates the energy of model fantasies drawn from the current distribution.
+
+\subsubsection{Contrastive Divergence (CD)}
+Evaluating the expectation $\mathbb{E}_{p_\theta}$ requires Markov Chain Monte Carlo (MCMC). Running chains to equilibrium at every gradient step is infeasible. Contrastive Divergence ($CD_k$) addresses this by initializing the Markov chain at data points $x$ and executing only a small number of $k$ steps (e.g., $k=1$ or $k=10$), effectively penalizing model perturbations away from the data manifold.
+
+\subsubsection{Curse of Dimensionality in Rejection Sampling}
+Consider generating MNIST digits ($D = 784$) via rejection sampling with proposal $q(x) = \mathcal{N}(0, \sigma_q^2 I)$ and target $p(x) = \mathcal{N}(0, \sigma_p^2 I)$, where $\sigma_q = 1.01 \sigma_p$ (a mere $1\%$ variance discrepancy). The acceptance probability is upper-bounded by:
+\begin{equation}
+P(\text{accept}) = \frac{1}{M} \approx \left(\frac{\sigma_p}{\sigma_q}\right)^D = \left(\frac{1}{1.01}\right)^{784} \approx 4.02 \times 10^{-4}
+\end{equation}
+On average, roughly $2,500$ proposal evaluations are required to accept a single valid sample, rendering rejection sampling completely impractical for high-dimensional generative modeling.
+
+\subsection{Experimental Implementation on MNIST}
+We trained an EBM parameterized by a deep convolutional network for 15 epochs utilizing ReduceLROnPlateau scheduling and Langevin sampling.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/image4.png}
+\caption{EBM training progression: Loss metrics, positive/negative energy curves ($E_{\text{real}}, E_{\text{fake}}$), and Langevin samples.}
+\label{fig:ebm_loss}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\columnwidth]{figures/image6.png}
+\caption{Synthesized digit samples generated from uniform random noise via Langevin dynamics.}
+\label{fig:ebm_samples}
+\end{figure}
+
+\subsubsection{Image Denoising Across Varied Noise Levels}
+Langevin dynamics was evaluated for image restoration across noise standard deviations $\sigma \in \{0.2, 0.4, 0.6\}$.
+\begin{itemize}
+    \item \textbf{$\sigma = 0.2$}: The model successfully removes background artifacts and restores sharp digit strokes.
+    \item \textbf{$\sigma = 0.4$}: High recovery of topological loops, with minor edge oversmoothing.
+    \item \textbf{$\sigma = 0.6$}: The initial sample is severely corrupted; the EBM produces a clean, recognizable digit, occasionally altering digit identity (e.g., collapsing a corrupted 2 into a 1) to land in the nearest energy well.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\columnwidth]{figures/image9.png}
+\caption{Denoising results at $\sigma = 0.6$ demonstrating background noise removal and topological restoration.}
+\label{fig:denoise_06}
+\end{figure}
+
+\section{Question 2: Score-Based Generative Modeling}
+
+\subsection{The Score Function and Partition Function Independence}
+The score function of a density $p(x)$ is defined as the gradient of its log-density:
+\begin{equation}
+s(x) \triangleq \nabla_x \log p(x)
+\end{equation}
+Substituting the unnormalized energy parameterization:
+\begin{equation}
+s(x) = \nabla_x [ -E_\theta(x) - \log Z(\theta) ] = -\nabla_x E_\theta(x)
+\end{equation}
+Because $Z(\theta)$ is independent of $x$, its spatial gradient is identically zero. Hence, score matching entirely circumvents the partition function!
+
+\subsection{Denoising Score Matching (DSM)}
+Standard score matching minimizes:
+\begin{equation}
+J_{\text{SM}}(\theta) = \mathbb{E}_{p_{\text{data}}(x)} \left[ \frac{1}{2} \|s_\theta(x)\|_2^2 + \text{tr}(\nabla_x s_\theta(x)) \right]
+\end{equation}
+Evaluating the Jacobian trace $\text{tr}(\nabla_x s_\theta(x))$ requires $D$ separate backpropagation passes, scaling prohibitively for image generation.
+
+Denoising Score Matching adds Gaussian noise $\tilde{x} \sim \mathcal{N}(x, \sigma^2 I)$ and trains a network to predict the analytic perturbation vector:
+\begin{equation}
+\nabla_{\tilde{x}} \log q_\sigma(\tilde{x} \mid x) = -\frac{\tilde{x} - x}{\sigma^2}
+\end{equation}
+The DSM objective simplifies to standard mean squared error:
+\begin{equation}
+\mathcal{L}_{\text{DSM}}(\theta) = \mathbb{E}_{x \sim p_{\text{data}}} \mathbb{E}_{\tilde{x} \sim \mathcal{N}(x, \sigma^2 I)} \left[ \left\| s_\theta(\tilde{x}) + \frac{\tilde{x} - x}{\sigma^2} \right\|_2^2 \right]
+\end{equation}
+which requires only a single forward-backward pass per mini-batch.
+
+\subsection{Pathologies of Single-Scale Score Matching}
+\begin{enumerate}
+    \item \textbf{Manifold Hypothesis}: Data concentrates on low-dimensional manifolds, leaving scores undefined in ambient empty space.
+    \item \textbf{Global Weight Blindness}: Scores retain only local derivative slopes, ignoring relative mode heights ($\pi_A$ vs. $\pi_B$).
+    \item \textbf{Lack of Mixing}: Isolated modes separated by low-density chasms experience vanishing gradients, trapping Langevin sampling in local basins.
+\end{enumerate}
+
+\subsection{NCSN and Annealed Langevin Dynamics with FiLM}
+Song \& Ermon resolve these challenges by perturbing data with a geometric noise sequence $\{\sigma_i\}_{i=1}^L$ ($\sigma_1 > \sigma_2 > \dots > \sigma_L$). Large $\sigma_1$ fills low-density valleys, connecting isolated modes and enabling global exploration. Annealing down to small $\sigma_L$ restores fine-grained visual details.
+
+\subsubsection{FiLM Conditioning Mechanism}
+To condition the score network on noise levels $\sigma_i$ or class labels $y$, Feature-wise Linear Modulation (FiLM) modulates intermediate feature activations $h$:
+\begin{equation}
+\text{FiLM}(h \mid \sigma) = \gamma(\sigma) \odot h + \beta(\sigma)
+\end{equation}
+where affine scales $\gamma$ and shifts $\beta$ are learned projections of the conditioning scalar.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/image22.png}
+\caption{Vector fields and simulated Annealed Langevin trajectories navigating from noise toward data clusters.}
+\label{fig:score_field}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\columnwidth]{figures/image27.png}
+\caption{Sampling convergence demonstrating coarse-to-fine sample generation across the noise schedule.}
+\label{fig:score_samples}
+\end{figure}
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{1}
+\bibitem{song2019generative}
+Y.~Song and S.~Ermon, ``Generative modeling by estimating gradients of the data distribution,'' in \emph{NeurIPS}, 2019.
+\bibitem{vincent2011connection}
+P.~Vincent, ``A connection between score matching and denoising autoencoders,'' \emph{Neural Computation}, vol.~23, no.~7, pp. 1661--1674, 2011.
+\bibitem{du2019implicit}
+Y.~Du and I.~Mordatch, ``Implicit generation and modeling with energy based models,'' in \emph{NeurIPS}, 2019.
+\bibitem{perez2018film}
+E.~Perez, F.~Strub, H.~de~Vries, V.~Dumoulin, and A.~Courville, ``FiLM: Visual reasoning with a general conditioning layer,'' in \emph{AAAI}, 2018.
+\end{thebibliography}
+
+\end{document}
