@@ -3,7 +3,7 @@
 <p align="center">
   <strong>Comprehensive Coursework & Implementations in Deep Generative Modeling</strong><br>
   <em>Faculty of Electrical and Computer Engineering, University of Tehran</em><br>
-  <strong>Semester:</strong> Fall 1404 (Fall 2025) &nbsp;|&nbsp; <strong>Instructor:</strong> Dr. Mostafa Tavasolipour (دکتر مصطفی توسلی‌پور)<br>
+  <strong>Semester:</strong> Fall 1404 (Fall 2025) &nbsp;|&nbsp; <strong>Instructor:</strong> Dr. Mostafa Tavassolipour (دکتر مصطفی توسلی‌پور)<br>
   <strong>Author:</strong> Alireza Najafi Motiei (Student ID: <code>810100224</code>)
 </p>
 
