@@ -34,7 +34,7 @@ This repository contains the complete theoretical research and PyTorch implement
   <tr>
     <td align="center" width="50%">
       <img src="assets/previews/hw02_cyclegan_sample.png" width="100%" alt="CycleGAN Horse2Zebra"/>
-      <br><strong>CycleGAN (Horse $\leftrightarrow$ Zebra)</strong>
+      <br><strong>CycleGAN (Horse &harr; Zebra)</strong>
     </td>
     <td align="center" width="50%">
       <img src="assets/previews/hw04_diffusion_denoising.png" width="100%" alt="Diffusion Denoising Trajectory"/>
@@ -44,7 +44,7 @@ This repository contains the complete theoretical research and PyTorch implement
   <tr>
     <td align="center" width="50%">
       <img src="assets/previews/hw01_vae_reconstructions.png" width="100%" alt="VAE dSprites Reconstructions"/>
-      <br><strong>$\beta$-VAE Disentanglement (dSprites)</strong>
+      <br><strong>&beta;-VAE Disentanglement (dSprites)</strong>
     </td>
     <td align="center" width="50%">
       <img src="assets/previews/hw04_dreambooth_husky.jpeg" width="38%" alt="DreamBooth Target Husky"/>

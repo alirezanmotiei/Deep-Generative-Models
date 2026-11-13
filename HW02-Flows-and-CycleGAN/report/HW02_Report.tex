@@ -46,7 +46,7 @@ Normalizing flows transform a simple base distribution $p_Z(z)$ (typically $\mat
 \end{equation}
 
 \subsubsection{Masked Autoencoder for Distribution Estimation (MADE)}
-MADE enforces the autoregressive property—$p(x) = \prod_{i=1}^D p(x_i \mid x_{<i})$—in feedforward networks via binary masking of weight matrices. Each hidden neuron is assigned an integer degree $m(l)$, ensuring that neuron $j$ in layer $l$ only connects to neurons in layer $l-1$ with degrees $m(l-1) \le m(l)$.
+MADE enforces the autoregressive property, $p(x) = \prod_{i=1}^D p(x_i \mid x_{<i})$, in feedforward networks via binary masking of weight matrices. Each hidden neuron is assigned an integer degree $m(l)$, ensuring that neuron $j$ in layer $l$ only connects to neurons in layer $l-1$ with degrees $m(l-1) \le m(l)$.
 
 \subsubsection{Masked Autoregressive Flow (MAF)}
 MAF leverages MADE to parameterize affine scale and translation functions:
